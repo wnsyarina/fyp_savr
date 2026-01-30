@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:fyp_savr/data/services/firebase_service.dart';
 import 'package:fyp_savr/features/auth/auth_wrapper.dart';
 import 'package:fyp_savr/firebase_options.dart';
@@ -9,6 +10,7 @@ import 'data/services/push_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
 
   bool hasInternetOnStartup = await NetworkService.hasInternetConnection();
   if (hasInternetOnStartup) {

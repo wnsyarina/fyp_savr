@@ -1,5 +1,4 @@
 import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fyp_savr/data/services/firebase_service.dart';
@@ -8,16 +7,13 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:fyp_savr/data/services/push_notification_service.dart';
 
 class NotificationService {
-  // ========== NOTIFICATION TYPES ==========
   static const String newOrder = 'new_order';
   static const String orderStatusUpdate = 'order_status_update';
   static const String orderReady = 'order_ready';
   static const String orderCompleted = 'order_completed';
   static const String paymentReceived = 'payment_received';
 
-  // ========== SEND NOTIFICATIONS ==========
 
-  // Send notification to merchant about new order
   static Future<void> sendNewOrderNotification({
     required String restaurantId,
     required String orderId,
@@ -26,66 +22,43 @@ class NotificationService {
     required String orderNumber,
   }) async {
     try {
-      print('=' * 50);
-      print('🔔 START: sendNewOrderNotification');
-      print('🔔 Restaurant ID: $restaurantId');
-      print('🔔 Order ID: $orderId');
-      print('🔔 Order #: $orderNumber');
-      print('🔔 Customer: $customerName');
-      print('🔔 Amount: RM$totalAmount');
-
-      // 1. Get merchant ID from restaurant
-      print('📋 Step 1: Looking up restaurant document...');
       final restaurantDoc = await FirebaseService.restaurants.doc(restaurantId).get();
       final restaurantData = restaurantDoc.data() as Map<String, dynamic>?;
 
       if (!restaurantDoc.exists) {
-        print('❌ ERROR: Restaurant document does not exist! ID: $restaurantId');
+        print('Restaurant document does not exist. ID: $restaurantId');
         print('=' * 50);
         return;
       }
-
-      print('✅ Restaurant found: ${restaurantData?['name'] ?? 'No name'}');
 
       final merchantId = restaurantData?['merchantId'];
-      print('📋 Merchant ID from restaurant: $merchantId');
-
       if (merchantId == null) {
-        print('❌ ERROR: Restaurant document has no merchantId field!');
-        print('❌ Restaurant data keys: ${restaurantData?.keys.toList()}');
+        print('Restaurant document has no merchantId field');
         print('=' * 50);
         return;
       }
 
-      // 2. Check if merchant user document exists
-      print('📋 Step 2: Checking merchant user document...');
       final merchantDoc = await FirebaseService.users.doc(merchantId).get();
 
       if (!merchantDoc.exists) {
-        print('❌ ERROR: Merchant user document does not exist! ID: $merchantId');
-        print('⚠️ Merchant needs to run the app at least once');
+        print('Merchant user document does not exist ID: $merchantId');
+        print('Merchant needs to run the app at least once');
         print('=' * 50);
         return;
       }
 
       final merchantData = merchantDoc.data() as Map<String, dynamic>?;
-      print('✅ Merchant user document exists');
+      print('Merchant user document exists');
 
-      // 3. Check if merchant has FCM tokens
-      print('📋 Step 3: Checking FCM tokens...');
       final tokens = (merchantData?['fcmTokens'] as List<dynamic>?)?.cast<String>() ?? [];
 
       if (tokens.isEmpty) {
-        print('⚠️ WARNING: Merchant has no FCM tokens saved!');
-        print('⚠️ Merchant needs to run app and grant notification permission');
-        print('📋 Merchant data keys: ${merchantData?.keys.toList()}');
+        print('Merchant has no FCM tokens saved');
+        print('Merchant needs to run app and grant notification permission');
       } else {
-        print('✅ Merchant has ${tokens.length} FCM token(s)');
-        print('📋 First token (first 50 chars): ${tokens.first.substring(0, min(50, tokens.first.length))}...');
+        print('Merchant has ${tokens.length} FCM token(s)');
       }
 
-      // 4. Send push notification
-      print('📋 Step 4: Sending push notification...');
       await PushNotificationService.sendPushNotification(
         userId: merchantId,
         title: 'New Order Received! 🎉',
@@ -101,7 +74,6 @@ class NotificationService {
         },
       );
 
-      // 5. Save to Firestore for in-app history
       print('📋 Step 5: Saving in-app notification...');
       await saveNotification(
         userId: merchantId,
@@ -117,18 +89,13 @@ class NotificationService {
         },
       );
 
-      print('✅ COMPLETE: Notification process finished');
-      print('=' * 50);
 
     } catch (e, stackTrace) {
-      print('❌ CRITICAL ERROR in sendNewOrderNotification: $e');
-      print('❌ Stack trace: $stackTrace');
-      print('=' * 50);
+      print('Error sending new order notification: $e');
+      print('Stack trace: $stackTrace');
     }
   }
 
-  // Send notification to customer about order status update
-  // Send notification to customer about order status update
   static Future<void> sendOrderStatusNotification({
     required String customerId,
     required String orderId,
@@ -138,15 +105,10 @@ class NotificationService {
   }) async {
     try {
       print('=' * 50);
-      print('🔄 START: sendOrderStatusNotification');
-      print('🔄 Customer ID: $customerId');
-      print('🔄 Order #: $orderNumber');
-      print('🔄 Status: $oldStatus → $newStatus');
 
       String title = '';
       String body = '';
 
-      // Better status messages
       switch (newStatus) {
         case 'confirmed':
           title = '✅ Order Confirmed!';
@@ -180,11 +142,10 @@ class NotificationService {
       print('🔄 Title: $title');
       print('🔄 Body: $body');
 
-      // ✅ SEND PUSH NOTIFICATION TO CUSTOMER
       await PushNotificationService.sendPushNotification(
         userId: customerId,
-        title: title,  // ⭐ Make sure these are passed
-        body: body,    // ⭐ Make sure these are passed
+        title: title,
+        body: body,
         data: {
           'type': 'order_status_update',
           'orderId': orderId,
@@ -192,12 +153,11 @@ class NotificationService {
           'newStatus': newStatus,
           'orderNumber': orderNumber,
           'click_action': 'FLUTTER_NOTIFICATION_CLICK',
-          'screen': 'order_history',  // ⭐ ADD THIS for navigation
-          'order_id': orderId,        // ⭐ ADD THIS for order details
+          'screen': 'order_history',
+          'order_id': orderId,
         },
       );
 
-      // Also save to Firestore for in-app history
       await saveNotification(
         userId: customerId,
         type: orderStatusUpdate,
@@ -211,16 +171,13 @@ class NotificationService {
         },
       );
 
-      print('✅ COMPLETE: Status notification sent to customer');
-      print('=' * 50);
 
     } catch (e, stackTrace) {
-      print('❌ ERROR in sendOrderStatusNotification: $e');
-      print('❌ Stack trace: $stackTrace');
+      print('ERROR in sendOrderStatusNotification: $e');
+      print('Stack trace: $stackTrace');
     }
   }
 
-  // Send payment notification to merchant
   static Future<void> sendPaymentNotification({
     required String restaurantId,
     required String orderId,
@@ -250,9 +207,7 @@ class NotificationService {
     }
   }
 
-  // ========== NOTIFICATION MANAGEMENT ==========
 
-  // Save notification to Firestore
   static Future<void> saveNotification({
     required String userId,
     required String type,
@@ -278,7 +233,6 @@ class NotificationService {
     }
   }
 
-  // Get user notifications stream
   static Stream<QuerySnapshot> getUserNotifications(String userId) {
     return FirebaseService.firestore
         .collection('users')
@@ -296,29 +250,21 @@ class NotificationService {
     required String newStatus,
   }) async {
     try {
-      print('=' * 50);
-      print('🏪 START: sendMerchantOrderStatusNotification');
-      print('🏪 Restaurant ID: $restaurantId');
-      print('🏪 Order #: $orderNumber');
-      print('🏪 Customer: $customerName');
-      print('🏪 New Status: $newStatus');
 
-      // 1. Get merchant ID from restaurant
       final restaurantDoc = await FirebaseService.restaurants.doc(restaurantId).get();
       final restaurantData = restaurantDoc.data() as Map<String, dynamic>?;
 
       if (!restaurantDoc.exists) {
-        print('❌ ERROR: Restaurant document does not exist!');
+        print('ERROR: Restaurant document does not exist!');
         return;
       }
 
       final merchantId = restaurantData?['merchantId'];
       if (merchantId == null) {
-        print('❌ ERROR: No merchantId found for restaurant');
+        print('ERROR: No merchantId found for restaurant');
         return;
       }
 
-      // 2. Prepare notification message based on status
       String title = '';
       String body = '';
 
@@ -336,12 +282,10 @@ class NotificationService {
           body = 'Order #${orderNumber.substring(0, 8)} from $customerName was cancelled';
           break;
         default:
-        // Don't notify merchant for other statuses
           print('🏪 No notification needed for merchant for status: $newStatus');
           return;
       }
 
-      // 3. Send push notification
       await PushNotificationService.sendPushNotification(
         userId: merchantId,
         title: title,
@@ -356,7 +300,6 @@ class NotificationService {
         },
       );
 
-      // 4. Save to Firestore for in-app history
       await saveNotification(
         userId: merchantId,
         type: 'merchant_order_update',
@@ -370,16 +313,13 @@ class NotificationService {
         },
       );
 
-      print('✅ COMPLETE: Merchant status notification sent');
-      print('=' * 50);
 
     } catch (e, stackTrace) {
-      print('❌ ERROR in sendMerchantOrderStatusNotification: $e');
-      print('❌ Stack trace: $stackTrace');
+      print('ERROR in sendMerchantOrderStatusNotification: $e');
+      print('Stack trace: $stackTrace');
     }
   }
 
-  // Mark notification as read
   static Future<void> markAsRead(String userId, String notificationId) async {
     try {
       await FirebaseService.firestore
@@ -395,7 +335,6 @@ class NotificationService {
     }
   }
 
-  // Mark all notifications as read
   static Future<void> markAllAsRead(String userId) async {
     try {
       final notifications = await FirebaseService.firestore
@@ -415,7 +354,6 @@ class NotificationService {
     }
   }
 
-  // Get unread notification count
   static Stream<int> getUnreadCount(String userId) {
     return FirebaseService.firestore
         .collection('users')
@@ -426,9 +364,7 @@ class NotificationService {
         .map((snapshot) => snapshot.docs.length);
   }
 
-  // ========== IN-APP NOTIFICATION UI ==========
 
-  // Show in-app notification snackbar
   static void showInAppNotification({
     required BuildContext context,
     required String title,
@@ -470,7 +406,6 @@ class NotificationService {
     );
   }
 
-  // Show new order alert dialog for merchant
   static void showNewOrderAlert({
     required BuildContext context,
     required String orderId,

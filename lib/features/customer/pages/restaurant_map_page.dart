@@ -319,7 +319,6 @@ class _RestaurantMapPageState extends State<RestaurantMapPage> {
             '&destination=$restaurantLat,$restaurantLng'
             '&travelmode=driving';
       } else {
-        // Just show location
         googleMapsUrl = 'https://www.google.com/maps/search/?api=1'
             '&query=$restaurantLat,$restaurantLng';
       }
